@@ -3,6 +3,7 @@ from aqt.qt import (
     QWidget,
     QDialog,
     QAction,
+    QLayout,
     QBoxLayout,
     QVBoxLayout,
     QHBoxLayout,
@@ -97,10 +98,33 @@ def create_config_dialog(addon_name: str) -> QDialog:
     dialog.setModal(True)
     dialog.setWindowTitle("Anki DeepL Configuration")
 
-    main_layout = QVBoxLayout()
-    group_box = QGroupBox()
     group_layout = QVBoxLayout()
 
+    # Language Dropdowns
+    group_layout.addLayout(create_language_pickers())
+
+    # Divider Line
+    hline = QFrame()
+    hline.setFrameShape(QFrame.Shape.HLine)
+    hline.setFrameShadow(QFrame.Shadow.Sunken)
+    group_layout.addWidget(hline)
+
+    # Note Type Rows
+    note_table = create_note_type_table()
+    group_layout.addLayout(note_table)
+
+    # Put it all together
+    group_box = QGroupBox()
+    group_box.setLayout(group_layout)
+
+    dialog_layout = QVBoxLayout()
+    dialog_layout.addWidget(group_box)
+    dialog_layout.addLayout(create_submit_buttons(addon_name, dialog))
+    dialog.setLayout(dialog_layout)
+    return dialog
+
+
+def create_language_pickers() -> QFormLayout:
     # Language Pickers
     form_layout = QFormLayout()
     form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
@@ -114,14 +138,14 @@ def create_config_dialog(addon_name: str) -> QDialog:
     target_langs.addItems(TARGET_LANGUAGES)
     target_langs.setCurrentText("EN-US")
     form_layout.addRow(QLabel("Target Language: "), target_langs)
-    group_layout.addLayout(form_layout)
 
-    hline = QFrame()
-    hline.setFrameShape(QFrame.Shape.HLine)
-    hline.setFrameShadow(QFrame.Shadow.Sunken)
-    group_layout.addWidget(hline)
+    return form_layout
 
-    # Note Type Rows
+
+def create_note_type_table() -> QVBoxLayout:
+    table_layout = QVBoxLayout()
+
+    # Header
     header_layout = QHBoxLayout()
     header_layout.setContentsMargins(0, 8, 0, 32)
     header_layout.addWidget(QLabel("Note Type:"))
@@ -130,47 +154,69 @@ def create_config_dialog(addon_name: str) -> QDialog:
     # header_layout.addSpacing(32)
     header_layout.addWidget(QLabel("Target Field:"))
     # header_layout.addStretch()
-    group_layout.addLayout(header_layout)
+    table_layout.addLayout(header_layout)
 
+    # NoteType Rows
+    all_models = mw.col.models.all()
     for i in range(note_type_count):
-        type_layout = QHBoxLayout()
+        table_layout.addLayout(create_note_type_row(all_models, i))
 
-        modelCmbo = QComboBox()
-        all_models = mw.col.models.all()
-        modelCmbo.addItems([model.get("name") for model in all_models])
-        modelCmbo.setCurrentIndex(0)
-        type_layout.addWidget(modelCmbo)
-
-        text = modelCmbo.currentText()
-        # lbl = QLabel(modelCmbo.currentText)
-        lbl = QLabel(text)
-        # lbl = QLabel("1")
-        type_layout.addWidget(lbl)
-
-        source_field = QComboBox()
-        type_layout.addWidget(source_field)
-
-        target_field = QComboBox()
-        type_layout.addWidget(target_field)
-
-        delete = QLabel(" X ")
-        type_layout.addWidget(delete)
-        group_layout.addLayout(type_layout)
-
-    # Add Note Type button
+    # Add Button
     button_layout = QHBoxLayout()
     addRowBtn = QPushButton(" + Add Note Type")
     button_layout.addWidget(addRowBtn)
     button_layout.addStretch()
-    group_layout.addLayout(button_layout)
-    group_layout.addStretch()
+    table_layout.addLayout(button_layout)
 
-    # End -- GroupBox
-    group_box.setLayout(group_layout)
-    main_layout.addWidget(group_box)
+    # Spacer
+    table_layout.addStretch()
+    return table_layout
 
-    # Row of submit Buttons
-    button_box = QHBoxLayout()
+
+def create_note_type_row(all_models, index=0) -> QHBoxLayout:
+    row_layout = QHBoxLayout()
+
+    # Note Type Dropdown
+    modelCmbo = QComboBox()
+    modelCmbo.addItems([model.get("name") for model in all_models])
+    modelCmbo.setCurrentIndex(index)
+    row_layout.addWidget(modelCmbo)
+
+    # Get Field List
+    model = all_models[index]
+    field_list = [field.get("name") for field in model.get("flds")]
+
+    # Source
+    source_field = QComboBox()
+    source_field.addItems(field_list)
+    row_layout.addWidget(source_field)
+
+    # Target
+    target_field = QComboBox()
+    target_field.addItems(field_list)
+    row_layout.addWidget(target_field)
+
+    def update_fields(index: int):
+        # Get New Fields
+        model = all_models[index]
+        field_list = [field.get("name") for field in model.get("flds")]
+
+        # Clear
+        source_field.clear()
+        target_field.clear()
+        # Update dropdowns
+        source_field.addItems(field_list)
+        target_field.addItems(field_list)
+
+    modelCmbo.currentIndexChanged.connect(update_fields)
+
+    delete = QLabel(" X ")
+    row_layout.addWidget(delete)
+    return row_layout
+
+
+def create_submit_buttons(addon_name: str, dialog: QDialog) -> QHBoxLayout:
+    submit_button_layout = QHBoxLayout()
 
     def handle_defaults():
         default_config = mw.addonManager.addonConfigDefaults(addon_name)
@@ -178,12 +224,12 @@ def create_config_dialog(addon_name: str) -> QDialog:
 
     restoreBtn = QPushButton("Restore Default")
     restoreBtn.clicked.connect(handle_defaults)
-    button_box.addWidget(restoreBtn)
-    button_box.addStretch()
+    submit_button_layout.addWidget(restoreBtn)
+    submit_button_layout.addStretch()
 
     cancelBtn = QPushButton("Cancel")
     cancelBtn.clicked.connect(dialog.close)
-    button_box.addWidget(cancelBtn)
+    submit_button_layout.addWidget(cancelBtn)
 
     def handle_save():
         mw.addonManager.writeConfig(addon_name, "{ 'configursation': '!!!!' }")
@@ -191,11 +237,8 @@ def create_config_dialog(addon_name: str) -> QDialog:
     saveBtn = QPushButton("Save")
     saveBtn.setDefault(True)
     saveBtn.clicked.connect(handle_save)
-    button_box.addWidget(saveBtn)
-
-    main_layout.addLayout(button_box)
-    dialog.setLayout(main_layout)
-    return dialog
+    submit_button_layout.addWidget(saveBtn)
+    return submit_button_layout
 
 
 def open_config_window():
