@@ -1,28 +1,23 @@
 from typing import Callable
 from aqt import mw
 from aqt.qt import (
-    QWidget,
     QDialog,
-    QAction,
-    QLayout,
-    QBoxLayout,
     QVBoxLayout,
     QHBoxLayout,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QPushButton,
     QLabel,
-    QLineEdit,
     QComboBox,
     QFrame,
+    QCursor,
     Qt,
 )
 
-dialog = None
 source_language = ""
 target_language = ""
 # noteTypes = []
-note_type_count = 2
 
 # Full Documentation here https://developers.deepl.com/docs/api-reference/translate/openapi-spec-for-text-translation
 SOURCE_LANGUAGES = [
@@ -111,10 +106,9 @@ def create_dialog(on_restore: Callable, on_save: Callable) -> QDialog:
     group_layout.addWidget(hline)
 
     # Note Type Rows
-    note_table = create_note_type_table()
-    group_layout.addLayout(note_table)
+    group_layout.addLayout(create_note_type_table())
+    group_layout.addStretch()
 
-    # Put it all together
     group_box = QGroupBox()
     group_box.setLayout(group_layout)
 
@@ -144,44 +138,40 @@ def create_language_pickers() -> QFormLayout:
 
 
 def create_note_type_table() -> QVBoxLayout:
-    table_layout = QVBoxLayout()
-
-    # Header
-    header_layout = QHBoxLayout()
-    header_layout.setContentsMargins(0, 8, 0, 32)
-    header_layout.addWidget(QLabel("Note Type:"))
-    # header_layout.addSpacing(32)
-    header_layout.addWidget(QLabel("Source Field:"))
-    # header_layout.addSpacing(32)
-    header_layout.addWidget(QLabel("Target Field:"))
-    # header_layout.addStretch()
-    table_layout.addLayout(header_layout)
+    table_layout = QGridLayout()
+    table_layout.setColumnStretch(0, 1)
+    table_layout.setColumnStretch(1, 1)
+    table_layout.setColumnStretch(2, 1)
+    table_layout.setColumnStretch(3, 0)
+    table_layout.addWidget(QLabel(f"Note Type:"), 0, 0)
+    table_layout.addWidget(QLabel(f"Source Field:"), 0, 1)
+    table_layout.addWidget(QLabel(f"Target Field:"), 0, 2)
 
     # NoteType Rows
     all_models = mw.col.models.all()
-    for i in range(note_type_count):
-        table_layout.addLayout(create_note_type_row(all_models, i))
+    # TODO: loop over the date structure instead of just some set number of times
+    for i in range(1, 3):
+        create_note_type_row(table_layout, all_models, i)
+        # table_layout.addLayout(create_note_type_row(all_models, i))
 
     # Add Button
-    button_layout = QHBoxLayout()
+    # button_layout = QHBoxLayout()
     addRowBtn = QPushButton(" + Add Note Type")
-    button_layout.addWidget(addRowBtn)
-    button_layout.addStretch()
-    table_layout.addLayout(button_layout)
-
-    # Spacer
-    table_layout.addStretch()
+    # button_layout.addWidget(addRowBtn)
+    # button_layout.addStretch()
+    # table_layout.addLayout(button_layout)
+    table_layout.addWidget(addRowBtn, 4, 0)
     return table_layout
 
 
-def create_note_type_row(all_models, index=0) -> QHBoxLayout:
-    row_layout = QHBoxLayout()
+def create_note_type_row(table_layout: QGridLayout, all_models, index=0) -> QHBoxLayout:
+    # row_layout = QHBoxLayout()
 
     # Note Type Dropdown
     modelCmbo = QComboBox()
     modelCmbo.addItems([model.get("name") for model in all_models])
     modelCmbo.setCurrentIndex(index)
-    row_layout.addWidget(modelCmbo)
+    table_layout.addWidget(modelCmbo, index, 0)
 
     # Get Field List
     model = all_models[index]
@@ -190,12 +180,12 @@ def create_note_type_row(all_models, index=0) -> QHBoxLayout:
     # Source
     source_field = QComboBox()
     source_field.addItems(field_list)
-    row_layout.addWidget(source_field)
+    table_layout.addWidget(source_field, index, 1)
 
     # Target
     target_field = QComboBox()
     target_field.addItems(field_list)
-    row_layout.addWidget(target_field)
+    table_layout.addWidget(target_field, index, 2)
 
     def update_fields(index: int):
         # Get New Fields
@@ -211,9 +201,10 @@ def create_note_type_row(all_models, index=0) -> QHBoxLayout:
 
     modelCmbo.currentIndexChanged.connect(update_fields)
 
-    delete = QLabel(" X ")
-    row_layout.addWidget(delete)
-    return row_layout
+    delete = QLabel("❌")
+    delete.setToolTip("Delete this Row")
+    delete.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+    table_layout.addWidget(delete, index, 3)
 
 
 def create_submit_buttons(

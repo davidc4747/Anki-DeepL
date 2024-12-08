@@ -1,6 +1,8 @@
 from aqt import gui_hooks, mw
 from .settings.dialog import create_dialog
 
+dialog = None
+
 
 def handle_defaults():
     default_config = mw.addonManager.addonConfigDefaults(__name__)
