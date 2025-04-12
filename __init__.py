@@ -9,8 +9,8 @@ def handle_defaults():
     mw.addonManager.writeConfig(__name__, default_config)
 
 
-def handle_save():
-    mw.addonManager.writeConfig(__name__, "{ 'configursation': '!!!!' }")
+def handle_save(data: dict):
+    mw.addonManager.writeConfig(__name__, data)
 
 
 def open_config_window():
@@ -20,5 +20,5 @@ def open_config_window():
     dialog.activateWindow()
 
 
-gui_hooks.main_window_did_init.append(open_config_window)
 mw.addonManager.setConfigAction(__name__, open_config_window)
+# gui_hooks.main_window_did_init.append(open_config_window)

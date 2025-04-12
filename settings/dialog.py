@@ -17,7 +17,6 @@ from aqt.qt import (
 
 source_language = ""
 target_language = ""
-# noteTypes = []
 
 # Full Documentation here https://developers.deepl.com/docs/api-reference/translate/openapi-spec-for-text-translation
 SOURCE_LANGUAGES = [
@@ -88,6 +87,8 @@ TARGET_LANGUAGES = [
     "ZH-HANT",
 ]
 
+state = {"source_lang": "EN", "target_lang": "ES", "translations": []}
+
 
 def create_dialog(on_restore: Callable, on_save: Callable) -> QDialog:
     dialog = QDialog()
@@ -126,13 +127,23 @@ def create_language_pickers() -> QFormLayout:
 
     source_langs = QComboBox()
     source_langs.addItems(SOURCE_LANGUAGES)
-    source_langs.setCurrentText("ES")
     form_layout.addRow(QLabel("Source Language: "), source_langs)
+
+    def handle_source_lang_changed(text):
+        state["source_lang"] = text
+
+    source_langs.currentTextChanged.connect(handle_source_lang_changed)
+    source_langs.setCurrentText("ES")
 
     target_langs = QComboBox()
     target_langs.addItems(TARGET_LANGUAGES)
-    target_langs.setCurrentText("EN-US")
     form_layout.addRow(QLabel("Target Language: "), target_langs)
+
+    def handle_target_lang_changed(text):
+        state["target_lang"] = text
+
+    target_langs.currentTextChanged.connect(handle_target_lang_changed)
+    target_langs.setCurrentText("EN-US")
 
     return form_layout
 
@@ -148,63 +159,116 @@ def create_note_type_table() -> QVBoxLayout:
     table_layout.addWidget(QLabel(f"Target Field:"), 0, 2)
 
     # NoteType Rows
-    all_models = mw.col.models.all()
-    # TODO: loop over the date structure instead of just some set number of times
-    for i in range(1, 3):
-        create_note_type_row(table_layout, all_models, i)
-        # table_layout.addLayout(create_note_type_row(all_models, i))
+    for note_type in state["translations"]:
+        render_note_type_row(table_layout, note_type)
+
+    def new_note_type_row() -> None:
+        all_models = mw.col.models.all()
+        model = all_models[0]
+        field_list = mw.col.models.field_names(model)
+
+        new_note_type = {
+            "id": 0,
+            "name": model.get("name"),
+            "source_field": field_list[0],
+            "target_field": field_list[1],
+        }
+        new_note_type["id"] = id(new_note_type)
+        state["translations"].append(new_note_type)
+        render_note_type_row(table_layout, new_note_type)
 
     # Add Button
-    # button_layout = QHBoxLayout()
     addRowBtn = QPushButton(" + Add Note Type")
-    # button_layout.addWidget(addRowBtn)
-    # button_layout.addStretch()
-    # table_layout.addLayout(button_layout)
+    addRowBtn.clicked.connect(new_note_type_row)
     table_layout.addWidget(addRowBtn, 4, 0)
     return table_layout
 
 
-def create_note_type_row(table_layout: QGridLayout, all_models, index=0) -> QHBoxLayout:
-    # row_layout = QHBoxLayout()
+def render_note_type_row(table_layout: QGridLayout, note_type) -> None:
+
+    def get_index():
+        return next(
+            (
+                index
+                for index, translation in enumerate(state["translations"])
+                if translation.get("id") == note_type.get("id")
+            ),
+            -1,
+        )
+
+    index = get_index()
 
     # Note Type Dropdown
     modelCmbo = QComboBox()
-    modelCmbo.addItems([model.get("name") for model in all_models])
-    modelCmbo.setCurrentIndex(index)
+    modelCmbo.addItems([nameId.name for nameId in mw.col.models.all_names_and_ids()])
+    modelCmbo.setCurrentText(note_type["name"])
     table_layout.addWidget(modelCmbo, index, 0)
 
     # Get Field List
-    model = all_models[index]
-    field_list = [field.get("name") for field in model.get("flds")]
+    model = mw.col.models.by_name(note_type["name"])
+    field_list = mw.col.models.field_names(model)
 
     # Source
     source_field = QComboBox()
     source_field.addItems(field_list)
+    source_field.setCurrentText(note_type["source_field"])
     table_layout.addWidget(source_field, index, 1)
+
+    def handle_source_field_changed(text):
+        index = get_index()
+        state["translations"][index]["source_field"] = text
+
+    source_field.currentTextChanged.connect(handle_source_field_changed)
 
     # Target
     target_field = QComboBox()
     target_field.addItems(field_list)
+    target_field.setCurrentText(note_type["target_field"])
     table_layout.addWidget(target_field, index, 2)
 
-    def update_fields(index: int):
+    def handle_target_field_changed(text):
+        index = get_index()
+        state["translations"][index]["target_field"] = text
+
+    target_field.currentTextChanged.connect(handle_target_field_changed)
+
+    def handle_update_fields(name: int):
         # Get New Fields
-        model = all_models[index]
-        field_list = [field.get("name") for field in model.get("flds")]
+        model = mw.col.models.by_name(name)
+        field_list = mw.col.models.field_names(model)
 
-        # Clear
-        source_field.clear()
-        target_field.clear()
         # Update dropdowns
+        source_field.clear()
+        source_field.setCurrentIndex(0)
         source_field.addItems(field_list)
+
+        target_field.clear()
         target_field.addItems(field_list)
+        target_field.setCurrentIndex(1)
 
-    modelCmbo.currentIndexChanged.connect(update_fields)
+        # Update Data
+        index = get_index()
+        state["translations"][index]["name"] = name
+        state["translations"][index]["source_field"] = source_field.currentText()
+        state["translations"][index]["target_field"] = target_field.currentText()
 
-    delete = QLabel("❌")
+    modelCmbo.currentTextChanged.connect(handle_update_fields)
+
+    delete = QPushButton("❌")
     delete.setToolTip("Delete this Row")
-    delete.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
     table_layout.addWidget(delete, index, 3)
+
+    def handle_delete():
+        index = get_index()
+        del state["translations"][index]
+        for i in range(table_layout.columnCount()):
+            table_layout.itemAtPosition(index, i).widget().deleteLater()
+        table_layout.removeWidget(source_field)
+        table_layout.removeWidget(target_field)
+        table_layout.removeWidget(delete)
+
+    #
+    delete.clicked.connect(handle_delete)
 
 
 def create_submit_buttons(
@@ -223,6 +287,11 @@ def create_submit_buttons(
 
     saveBtn = QPushButton("Save")
     saveBtn.setDefault(True)
-    saveBtn.clicked.connect(on_save)
     submit_button_layout.addWidget(saveBtn)
+
+    def handle_save():
+        on_save(state)
+        dialog.close()
+
+    saveBtn.clicked.connect(handle_save)
     return submit_button_layout
