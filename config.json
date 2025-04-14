@@ -1,11 +1,5 @@
 {
-    "sourceLanguage": "ES",
-    "targetLanguage": "EN",
-    "notes": [
-        {
-            "noteType": "Spanish",
-            "sourceField": "Spanish Answer",
-            "targetField": "English Answer"
-        }
-    ]
+    "source_lang": "ES",
+    "target_lang": "EN",
+    "translations": []
 }
