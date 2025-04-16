@@ -5,7 +5,7 @@ from anki.notes import Note, NoteId
 from .settings.settings_dialog import SettingDialog
 from .config import get_config, restore_defaults, save, set_config_action, UserConfig
 from .deepl import translate_phrases, deepl_usage
-from .utils import get_field_index
+from .utils import get_field_index, get_field_indices
 
 
 dialog = None
@@ -25,12 +25,6 @@ def open_settings_window():
 
 @gui_hooks.sync_will_start.append
 def generate_missing_fields():
-    # Check that you haven't reached the DeepL Limit
-    res = deepl_usage()
-    if res.character_count / res.character_limit >= 0.9:
-        print("Reached DeepL Limit")
-        return
-
     # Read User config
     config = get_config()
 
@@ -41,6 +35,22 @@ def generate_missing_fields():
             for model_name, t in config.translations.items()
         ]
     )
+
+    # Check if the DeepL Limit has been reached
+    usage = deepl_usage()
+    char_count = usage.character_count
+    notes: list[Note] = []
+    for nid in mw.col.find_notes(search):
+        note = mw.col.get_note(nid)
+        source_index, target_index = get_field_indices(config, note)
+
+        if source_index != -1:
+            field_len = len(note.values()[source_index])
+            if char_count + field_len < usage.character_limit:
+                notes.append(note)
+                char_count += field_len
+
+    # Break it up into multiple translation requests for DeepL
     notes: list[Note] = [mw.col.get_note(nid) for nid in mw.col.find_notes(search)]
 
     CHUNK_SIZE = 1000
@@ -51,21 +61,15 @@ def generate_missing_fields():
 def translate_notes(config: UserConfig, notes: list[Note]) -> None:
     phrases = []
     for note in notes:
-        model = note.note_type()
-        translation_config = config.translations.get(model.get("name"))
-        if translation_config:
-            source_index: int = get_field_index(model, translation_config.source_field)
+        source_index, target_index = get_field_indices(config, note)
+        if source_index != -1:
             phrases.append(note.values()[source_index])
 
     def on_success(english_translations):
         # Update the Note Fields
         for idx, note in enumerate(notes):
-            model = note.note_type()
-            translation_config = config.translations.get(model.get("name"))
-            if translation_config:
-                target_index: int = get_field_index(
-                    model, translation_config.target_field
-                )
+            source_index, target_index = get_field_indices(config, note)
+            if target_index != -1:
                 note.fields[target_index] = english_translations[idx]
         update_notes(parent=mw, notes=notes).run_in_background()
 
