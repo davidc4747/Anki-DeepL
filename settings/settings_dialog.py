@@ -1,14 +1,15 @@
 from PyQt6.QtCore import pyqtSignal
 from aqt.qt import (
-    QVBoxLayout,
-    QFrame,
-    QGroupBox,
     QDialog,
     QFormLayout,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFrame,
+    QGroupBox,
     QComboBox,
     QLabel,
     QPushButton,
-    QHBoxLayout,
+    QLineEdit,
 )
 from ..deepl import SOURCE_LANGUAGES, TARGET_LANGUAGES
 from .note_type_table import NoteTypeTable
@@ -22,9 +23,10 @@ class SettingDialog(QDialog):
     def __init__(self, config: UserConfig):
         super().__init__()
         self.setModal(True)
-        self.setWindowTitle("Anki DeepL Configuration")
+        self.setWindowTitle("Anki DeepL Settings")
 
         group_layout = QVBoxLayout()
+        group_layout.setContentsMargins(9, 0, 9, 9)
 
         # Language Dropdowns
         group_layout.addLayout(self.create_language_pickers(config))
@@ -44,9 +46,20 @@ class SettingDialog(QDialog):
         group_box.setLayout(group_layout)
 
         dialog_layout = QVBoxLayout()
+        dialog_layout.addLayout(self.create_auth_key_input(config))
         dialog_layout.addWidget(group_box)
         dialog_layout.addLayout(self.create_submit_buttons())
         self.setLayout(dialog_layout)
+
+    def create_auth_key_input(self, config: UserConfig) -> QHBoxLayout:
+        # DeepL-Auth-Key
+        key_layout = QHBoxLayout()
+        key_layout.addWidget(QLabel("DeepL-Auth-Key: "))
+        self.auth_key = QLineEdit()
+        self.auth_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.auth_key.setText(config.deepl_auth_key)
+        key_layout.addWidget(self.auth_key)
+        return key_layout
 
     def create_language_pickers(self, config: UserConfig) -> QFormLayout:
         # Language Pickers
@@ -95,6 +108,7 @@ class SettingDialog(QDialog):
     def handle_save(self) -> None:
         self.saved.emit(
             UserConfig(
+                deepl_auth_key=self.auth_key.text(),
                 source_lang=self.source_langs.currentText(),
                 target_lang=self.target_langs.currentText(),
                 translations=self.note_table.get_translations(),

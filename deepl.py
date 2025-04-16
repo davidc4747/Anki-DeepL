@@ -71,10 +71,9 @@ TARGET_LANGUAGES = [
     "ZH-HANT",
 ]
 
-_DEEPL_AUTH = ""
-
 
 def translate_phrases(
+    deepl_auth_key: str,
     source_lang: str,
     target_lang: str,
     phrases: list[str],
@@ -92,7 +91,7 @@ def translate_phrases(
     )
     headers = {
         "Content-Type": "application/json",
-        "Authorization": _DEEPL_AUTH,
+        "Authorization": f"DeepL-Auth-Key {deepl_auth_key}",
     }
     conn.request("POST", "/v2/translate", payload, headers)
     raw = conn.getresponse().read().decode("utf-8")
@@ -110,10 +109,10 @@ class DeepLUsageResponse:
     character_limit: int
 
 
-def deepl_usage() -> DeepLUsageResponse:
+def deepl_usage(deepl_auth_key: str) -> DeepLUsageResponse:
     conn = http.client.HTTPSConnection("api-free.deepl.com")
     payload = ""
-    headers = {"Authorization": _DEEPL_AUTH}
+    headers = {"Authorization": f"DeepL-Auth-Key {deepl_auth_key}"}
     conn.request("GET", "/v2/usage", payload, headers)
     raw = conn.getresponse().read().decode("utf-8")
     data = json.loads(raw)

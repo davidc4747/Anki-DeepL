@@ -5,7 +5,7 @@ from anki.notes import Note, NoteId
 from .settings.settings_dialog import SettingDialog
 from .config import get_config, restore_defaults, save, set_config_action, UserConfig
 from .deepl import translate_phrases, deepl_usage
-from .utils import get_field_index, get_field_indices
+from .utils import get_field_indices
 
 
 dialog = None
@@ -37,7 +37,7 @@ def generate_missing_fields():
     )
 
     # Check if the DeepL Limit has been reached
-    usage = deepl_usage()
+    usage = deepl_usage(config.deepl_auth_key)
     char_count = usage.character_count
     notes: list[Note] = []
     for nid in mw.col.find_notes(search):
@@ -51,9 +51,7 @@ def generate_missing_fields():
                 char_count += field_len
 
     # Break it up into multiple translation requests for DeepL
-    notes: list[Note] = [mw.col.get_note(nid) for nid in mw.col.find_notes(search)]
-
-    CHUNK_SIZE = 1000
+    CHUNK_SIZE = 500
     for i in range(0, len(notes), CHUNK_SIZE):
         translate_notes(config, notes[i : i + CHUNK_SIZE])
 
@@ -77,7 +75,7 @@ def translate_notes(config: UserConfig, notes: list[Note]) -> None:
     QueryOp(
         parent=mw,
         op=lambda col: translate_phrases(
-            config.source_lang, config.target_lang, phrases
+            config.deepl_auth_key, config.source_lang, config.target_lang, phrases
         ),
         success=on_success,
-    ).with_progress("Tranlating cards...").run_in_background()
+    ).with_progress("Tranlating DeepL Fields...").run_in_background()

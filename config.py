@@ -14,6 +14,7 @@ class TranslationConfig:
 
 @dataclass
 class UserConfig:
+    deepl_auth_key: str
     source_lang: str
     target_lang: str
     translations: dict[str, TranslationConfig] = field(default_factory=dict)
@@ -22,6 +23,7 @@ class UserConfig:
 def get_config() -> UserConfig:
     config = mw.addonManager.getConfig(addon_name)
     return UserConfig(
+        deepl_auth_key=config.get("deepl_auth_key"),
         source_lang=config.get("source_lang"),
         target_lang=config.get("target_lang"),
         translations={
@@ -32,10 +34,10 @@ def get_config() -> UserConfig:
 
 
 def save(config: UserConfig) -> None:
-    print(config)
     mw.addonManager.writeConfig(
         addon_name,
         {
+            "deepl_auth_key": config.deepl_auth_key,
             "source_lang": config.source_lang,
             "target_lang": config.target_lang,
             "translations": {
