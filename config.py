@@ -1,13 +1,13 @@
-from typing import Callable
-from dataclasses import dataclass
+from typing import Callable, Any
+from dataclasses import dataclass, field, asdict
 from aqt import mw
 
 addon_name = mw.addonManager.addonFromModule(__name__)
 
 
 @dataclass
-class TransaltionConfig:
-    name: str
+class TranslationConfig:
+    model_name: str
     source_field: str
     target_field: str
 
@@ -16,17 +16,19 @@ class TransaltionConfig:
 class UserConfig:
     source_lang: str
     target_lang: str
-    translations: list[TransaltionConfig]
+    translations: dict[str, TranslationConfig] = field(default_factory=dict)
 
 
 def get_config() -> UserConfig:
-    config = UserConfig(**mw.addonManager.getConfig(addon_name))
-    config.translations = (
-        [TransaltionConfig(**t) for t in config.translations]
-        if config.translations
-        else []
+    config = mw.addonManager.getConfig(addon_name)
+    return UserConfig(
+        source_lang=config.get("source_lang"),
+        target_lang=config.get("target_lang"),
+        translations={
+            key: TranslationConfig(**value)
+            for key, value in config.get("translations").items()
+        },
     )
-    return config 
 
 
 def restore_defaults() -> None:
@@ -35,7 +37,17 @@ def restore_defaults() -> None:
 
 
 def save(config: UserConfig) -> None:
-    mw.addonManager.writeConfig(addon_name, config)
+    print(config)
+    mw.addonManager.writeConfig(
+        addon_name,
+        {
+            "source_lang": config.source_lang,
+            "target_lang": config.target_lang,
+            "translations": {
+                key: asdict(value) for key, value in config.translations.items()
+            },
+        },
+    )
 
 
 def set_config_action(func: Callable) -> None:

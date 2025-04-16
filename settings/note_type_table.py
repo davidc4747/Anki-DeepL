@@ -1,7 +1,7 @@
 from aqt import mw
 from aqt.qt import QGridLayout, QLabel, QPushButton, QComboBox
 from ..utils import get_field_by_model_name
-from ..config import UserConfig, TransaltionConfig
+from ..config import UserConfig, TranslationConfig
 
 
 class NoteTypeTable(QGridLayout):
@@ -19,22 +19,22 @@ class NoteTypeTable(QGridLayout):
 
         # NoteType Rows
         if config and config.translations:
-            for index, note_type in enumerate(config.translations):
+            for index, note_type in enumerate(config.translations.items()):
                 # index+1 cuz the first row has Qlabels in it
-                self.insert_row(note_type, index + 1)
+                self.insert_row(note_type[1], index + 1)
 
         # Add Button
         addRowBtn = QPushButton(" + Add Note Type")
         addRowBtn.clicked.connect(self.append_row)
         self.addWidget(addRowBtn, 4, 0)
 
-    def insert_row(self, note_type: TransaltionConfig, row: int) -> None:
+    def insert_row(self, note_type: TranslationConfig, row: int) -> None:
         # Note Type Dropdown
         modelCmbo = QComboBox()
         modelCmbo.addItems(
             [nameId.name for nameId in mw.col.models.all_names_and_ids()]
         )
-        modelCmbo.setCurrentText(note_type.name)
+        modelCmbo.setCurrentText(note_type.model_name)
         modelCmbo.currentTextChanged.connect(self.handle_update_row)
 
         # Get Field List
@@ -73,17 +73,15 @@ class NoteTypeTable(QGridLayout):
         model = mw.col.models.all()[0]
         field_list = mw.col.models.field_names(model)
         self.insert_row(
-            TransaltionConfig(
-                **{
-                    "name": model.get("name"),
-                    "source_field": field_list[0] or "",
-                    "target_field": field_list[1] or "",
-                }
+            TranslationConfig(
+                model_name=model.get("name"),
+                source_field=field_list[0] or "",
+                target_field=field_list[1] or "",
             ),
             self.rowCount() - 1,  # Move it 1 above the " + Add Note Type"
         )
 
-    def handle_update_row(self, name: int) -> None:
+    def handle_update_row(self, name: str) -> None:
         # Get New Fields
         field_list = get_field_by_model_name(name)
         row, col, rowspan, colspan = self.getItemPosition(self.indexOf(self.sender()))
@@ -111,8 +109,8 @@ class NoteTypeTable(QGridLayout):
             if widget:
                 widget.widget().deleteLater()
 
-    def get_translations(self) -> dict:
-        translations = []
+    def get_translations(self) -> dict[str, TranslationConfig]:
+        translations = {}
         for row in range(1, self.rowCount() - 1):
 
             modelCmbo = self.itemAtPosition(row, 0)
@@ -120,12 +118,11 @@ class NoteTypeTable(QGridLayout):
             target_field = self.itemAtPosition(row, 2)
 
             if modelCmbo and source_field and target_field:
-                translations.append(
-                    {
-                        "name": modelCmbo.widget().currentText(),
-                        "source_field": source_field.widget().currentText(),
-                        "target_field": target_field.widget().currentText(),
-                    }
+                model_name = modelCmbo.widget().currentText()
+                translations[model_name] = TranslationConfig(
+                    model_name=model_name,
+                    source_field=source_field.widget().currentText(),
+                    target_field=target_field.widget().currentText(),
                 )
 
         return translations

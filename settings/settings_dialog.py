@@ -16,7 +16,7 @@ from ..config import UserConfig
 
 
 class SettingDialog(QDialog):
-    saved = pyqtSignal(dict)
+    saved = pyqtSignal(UserConfig)
     default_restored = pyqtSignal()
 
     def __init__(self, config: UserConfig):
@@ -92,16 +92,16 @@ class SettingDialog(QDialog):
         saveBtn.clicked.connect(self.handle_save)
         return submit_button_layout
 
-    def handle_save(self):
+    def handle_save(self) -> None:
         self.saved.emit(
-            {
-                "source_lang": self.source_langs.currentText(),
-                "target_lang": self.target_langs.currentText(),
-                "translations": self.note_table.get_translations(),
-            }
+            UserConfig(
+                source_lang=self.source_langs.currentText(),
+                target_lang=self.target_langs.currentText(),
+                translations=self.note_table.get_translations(),
+            )
         )
         self.close()
 
-    def handle_restore_default(self):
+    def handle_restore_default(self) -> None:
         self.default_restored.emit()
         self.close()
