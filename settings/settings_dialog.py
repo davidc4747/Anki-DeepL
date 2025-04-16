@@ -10,15 +10,16 @@ from aqt.qt import (
     QPushButton,
     QHBoxLayout,
 )
-from .deepl import SOURCE_LANGUAGES, TARGET_LANGUAGES
+from ..deepl import SOURCE_LANGUAGES, TARGET_LANGUAGES
 from .note_type_table import NoteTypeTable
+from ..config import UserConfig
 
 
 class SettingDialog(QDialog):
     saved = pyqtSignal(dict)
     default_restored = pyqtSignal()
 
-    def __init__(self, config: dict):
+    def __init__(self, config: UserConfig):
         super().__init__()
         self.setModal(True)
         self.setWindowTitle("Anki DeepL Configuration")
@@ -47,7 +48,7 @@ class SettingDialog(QDialog):
         dialog_layout.addLayout(self.create_submit_buttons())
         self.setLayout(dialog_layout)
 
-    def create_language_pickers(self, config: dict) -> QFormLayout:
+    def create_language_pickers(self, config: UserConfig) -> QFormLayout:
         # Language Pickers
         form_layout = QFormLayout()
         form_layout.setFieldGrowthPolicy(
@@ -64,8 +65,8 @@ class SettingDialog(QDialog):
         self.target_langs.setCurrentText("EN-US")
 
         if config:
-            self.source_langs.setCurrentText(config.get("source_lang"))
-            self.target_langs.setCurrentText(config.get("target_lang"))
+            self.source_langs.setCurrentText(config.source_lang)
+            self.target_langs.setCurrentText(config.target_lang)
 
         return form_layout
 

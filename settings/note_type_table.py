@@ -1,10 +1,11 @@
 from aqt import mw
 from aqt.qt import QGridLayout, QLabel, QPushButton, QComboBox
 from ..utils import get_field_by_model_name
+from ..config import UserConfig, TransaltionConfig
 
 
 class NoteTypeTable(QGridLayout):
-    def __init__(self, config: dict):
+    def __init__(self, config: UserConfig):
         super().__init__()
         self.setColumnStretch(0, 1)
         self.setColumnStretch(1, 1)
@@ -17,8 +18,8 @@ class NoteTypeTable(QGridLayout):
         self.addWidget(QLabel(f"Target Field:"), 0, 2)
 
         # NoteType Rows
-        if config and config.get("translations"):
-            for index, note_type in enumerate(config.get("translations")):
+        if config and config.translations:
+            for index, note_type in enumerate(config.translations):
                 # index+1 cuz the first row has Qlabels in it
                 self.insert_row(note_type, index + 1)
 
@@ -27,13 +28,13 @@ class NoteTypeTable(QGridLayout):
         addRowBtn.clicked.connect(self.append_row)
         self.addWidget(addRowBtn, 4, 0)
 
-    def insert_row(self, note_type: dict, row: int) -> None:
+    def insert_row(self, note_type: TransaltionConfig, row: int) -> None:
         # Note Type Dropdown
         modelCmbo = QComboBox()
         modelCmbo.addItems(
             [nameId.name for nameId in mw.col.models.all_names_and_ids()]
         )
-        modelCmbo.setCurrentText(note_type.get("name"))
+        modelCmbo.setCurrentText(note_type.name)
         modelCmbo.currentTextChanged.connect(self.handle_update_row)
 
         # Get Field List
@@ -42,12 +43,12 @@ class NoteTypeTable(QGridLayout):
         # Source
         source_field = QComboBox()
         source_field.addItems(field_list if len(field_list) > 0 else [""])
-        source_field.setCurrentText(note_type.get("source_field"))
+        source_field.setCurrentText(note_type.source_field)
 
         # Target
         target_field = QComboBox()
         target_field.addItems(field_list if len(field_list) > 0 else [""])
-        target_field.setCurrentText(note_type.get("target_field"))
+        target_field.setCurrentText(note_type.target_field)
 
         # Delete
         delete = QPushButton("❌")
@@ -72,11 +73,13 @@ class NoteTypeTable(QGridLayout):
         model = mw.col.models.all()[0]
         field_list = mw.col.models.field_names(model)
         self.insert_row(
-            {
-                "name": model.get("name"),
-                "source_field": field_list[0] or "",
-                "target_field": field_list[1] or "",
-            },
+            TransaltionConfig(
+                **{
+                    "name": model.get("name"),
+                    "source_field": field_list[0] or "",
+                    "target_field": field_list[1] or "",
+                }
+            ),
             self.rowCount() - 1,  # Move it 1 above the " + Add Note Type"
         )
 
