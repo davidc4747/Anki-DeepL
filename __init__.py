@@ -1,4 +1,5 @@
 from aqt import gui_hooks, mw
+from aqt.qt import QAction
 from aqt.operations import QueryOp
 from aqt.operations.note import update_notes
 from anki.notes import Note, NoteId
@@ -8,11 +9,15 @@ from .deepl import translate_phrases, deepl_usage
 from .utils import get_field_indices
 
 
+# Settings Window
+#########################################################################
 dialog = None
+action = QAction("AnkiDeepL Options...", mw)
 
 
 @set_config_action
-def open_settings_window():
+@action.triggered.connect
+def open_settings_window() -> None:
     global dialog
     dialog = SettingDialog(get_config())
 
@@ -23,8 +28,15 @@ def open_settings_window():
     dialog.activateWindow()
 
 
+mw.form.menuTools.addAction(action)
+
+
+# Translate on Sync
+#########################################################################
+
+
 @gui_hooks.sync_will_start.append
-def generate_missing_fields():
+def generate_missing_fields() -> None:
     # Read User config
     config = get_config()
 
