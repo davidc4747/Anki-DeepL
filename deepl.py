@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import http.client
 import json
 
@@ -70,8 +71,10 @@ TARGET_LANGUAGES = [
     "ZH-HANT",
 ]
 
+_DEEPL_AUTH = ""
 
-def translate_multiple(
+
+def translate_phrases(
     source_lang: str,
     target_lang: str,
     phrases: list[str],
@@ -89,8 +92,32 @@ def translate_multiple(
     )
     headers = {
         "Content-Type": "application/json",
-        "Authorization": "",
+        "Authorization": _DEEPL_AUTH,
     }
     conn.request("POST", "/v2/translate", payload, headers)
-    data = json.loads(conn.getresponse().read().decode("utf-8"))
-    return [t.get("text") for t in data.get("translations")]
+    raw = conn.getresponse().read().decode("utf-8")
+    data = json.loads(raw)
+
+    if data.get("message"):
+        raise RuntimeError(f'DeepL Tanslation failed: {data.get("message")}')
+    else:
+        return [t.get("text") for t in data.get("translations")]
+
+
+@dataclass
+class DeepLUsageResponse:
+    character_count: int
+    character_limit: int
+
+
+def deepl_usage() -> DeepLUsageResponse:
+    conn = http.client.HTTPSConnection("api-free.deepl.com")
+    payload = ""
+    headers = {"Authorization": _DEEPL_AUTH}
+    conn.request("GET", "/v2/usage", payload, headers)
+    raw = conn.getresponse().read().decode("utf-8")
+    data = json.loads(raw)
+    return DeepLUsageResponse(
+        character_count=data.get("character_count"),
+        character_limit=data.get("character_limit"),
+    )

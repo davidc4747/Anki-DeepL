@@ -1,9 +1,10 @@
 from aqt import gui_hooks, mw
 from aqt.operations import QueryOp
 from aqt.operations.note import update_notes
+from anki.notes import Note, NoteId
 from .settings.settings_dialog import SettingDialog
-from .config import get_config, restore_defaults, save, set_config_action
-from .deepl import translate_multiple
+from .config import get_config, restore_defaults, save, set_config_action, UserConfig
+from .deepl import translate_phrases, deepl_usage
 from .utils import get_field_index
 
 
@@ -24,6 +25,12 @@ def open_settings_window():
 
 @gui_hooks.sync_will_start.append
 def generate_missing_fields():
+    # Check that you haven't reached the DeepL Limit
+    res = deepl_usage()
+    if res.character_count / res.character_limit >= 0.9:
+        print("Reached DeepL Limit")
+        return
+
     # Read User config
     config = get_config()
 
@@ -34,8 +41,14 @@ def generate_missing_fields():
             for model_name, t in config.translations.items()
         ]
     )
-    notes = [mw.col.get_note(nid) for nid in mw.col.find_notes(search)]
+    notes: list[Note] = [mw.col.get_note(nid) for nid in mw.col.find_notes(search)]
 
+    CHUNK_SIZE = 1000
+    for i in range(0, len(notes), CHUNK_SIZE):
+        translate_notes(config, notes[i : i + CHUNK_SIZE])
+
+
+def translate_notes(config: UserConfig, notes: list[Note]) -> None:
     phrases = []
     for note in notes:
         model = note.note_type()
@@ -59,7 +72,7 @@ def generate_missing_fields():
     # Send the field to DeepL for translation
     QueryOp(
         parent=mw,
-        op=lambda col: translate_multiple(
+        op=lambda col: translate_phrases(
             config.source_lang, config.target_lang, phrases
         ),
         success=on_success,
